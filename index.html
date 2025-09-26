@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Structural Health & Seismic Monitor</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for glowing text and pulse animation */
+        .glow {
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.7);
+        }
+        .alert-pulse {
+            animation: pulse-bg 1s infinite;
+        }
+        @keyframes pulse-bg {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white antialiased">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <!-- Header -->
+        <header class="mb-8 text-center">
+            <h1 class="text-3xl md:text-4xl font-bold tracking-tight glow">Brick Structural Health & Seismic Monitor</h1>
+            <p class="text-gray-400 mt-2">Real-time data from ESP32 Sensor Network</p>
+            <div id="connection-status" class="mt-4 inline-block text-sm font-medium px-4 py-2 rounded-full bg-yellow-500 text-gray-900 transition-all duration-300">
+                Connecting...
+            </div>
+        </header>
+
+        <!-- Main Data Grid -->
+        <main class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+            <!-- Health Status Card -->
+            <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700">
+                <h2 class="text-lg font-semibold text-gray-400 mb-2">Brick Health</h2>
+                <p id="health" class="text-5xl font-bold text-cyan-400">- %</p>
+            </div>
+
+            <!-- PZT Voltage Card -->
+            <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700">
+                <h2 class="text-lg font-semibold text-gray-400 mb-2">PZT Piezoelectric Voltage</h2>
+                <p id="voltage" class="text-5xl font-bold text-green-400">- mV</p>
+            </div>
+            
+            <!-- Temperature Card -->
+            <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700">
+                <h2 class="text-lg font-semibold text-gray-400 mb-2">Ambient Temperature</h2>
+                <p id="temp" class="text-5xl font-bold text-orange-400">- °C</p>
+            </div>
+
+            <!-- Accelerometer Card -->
+            <div class="bg-gray-800 p-6 rounded-2xl shadow-lg border border-gray-700 md:col-span-2 lg:col-span-3">
+                <h2 class="text-lg font-semibold text-gray-400 mb-4">Live Acceleration (g-force)</h2>
+                <div class="flex justify-around text-center">
+                    <div>
+                        <p class="text-gray-500 text-sm">X-AXIS</p>
+                        <p id="accelX" class="text-4xl font-semibold">-</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 text-sm">Y-AXIS</p>
+                        <p id="accelY" class="text-4xl font-semibold">-</p>
+                    </div>
+                    <div>
+                        <p class="text-gray-500 text-sm">Z-AXIS</p>
+                        <p id="accelZ" class="text-4xl font-semibold">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Earthquake Alert Card -->
+            <div id="earthquake-card" class="bg-green-800/50 p-6 rounded-2xl shadow-lg transition-all duration-300 border border-gray-700 lg:col-start-1">
+                <h2 class="text-lg font-semibold text-gray-300 mb-2">Seismic Alert</h2>
+                <p id="earthquakeAlert" class="text-5xl font-bold">NO</p>
+            </div>
+
+            <!-- Weak Brick Alert Card -->
+            <div id="brick-card" class="bg-green-800/50 p-6 rounded-2xl shadow-lg transition-all duration-300 border border-gray-700 lg:col-start-2">
+                <h2 class="text-lg font-semibold text-gray-300 mb-2">Weak Brick Warning</h2>
+                <p id="weakBrickWarning" class="text-5xl font-bold">NO</p>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        // --- CLIENT-SIDE JAVASCRIPT ---
+        
+        // Establish WebSocket connection with the server
+        const hostname = window.location.hostname || 'localhost';
+        const socket = new WebSocket(`ws://${hostname}:8080`);
+
+        // Get references to all the HTML elements we need to update
+        const elements = {
+            status: document.getElementById('connection-status'),
+            health: document.getElementById('health'),
+            voltage: document.getElementById('voltage'),
+            temp: document.getElementById('temp'),
+            accelX: document.getElementById('accelX'),
+            accelY: document.getElementById('accelY'),
+            accelZ: document.getElementById('accelZ'),
+            earthquakeCard: document.getElementById('earthquake-card'),
+            earthquakeAlert: document.getElementById('earthquakeAlert'),
+            brickCard: document.getElementById('brick-card'),
+            weakBrickWarning: document.getElementById('weakBrickWarning'),
+        };
+
+        // --- WebSocket Event Handlers ---
+
+        socket.onopen = () => {
+            console.log('WebSocket connection established');
+            elements.status.textContent = 'Connected';
+            elements.status.classList.remove('bg-yellow-500', 'bg-red-500');
+            elements.status.classList.add('bg-green-500');
+        };
+
+        socket.onclose = () => {
+            console.log('WebSocket connection closed');
+            elements.status.textContent = 'Disconnected';
+            elements.status.classList.remove('bg-yellow-500', 'bg-green-500');
+            elements.status.classList.add('bg-red-500');
+        };
+        
+        socket.onerror = (error) => {
+            console.error('WebSocket Error:', error);
+            elements.status.textContent = 'Connection Error';
+            elements.status.classList.remove('bg-yellow-500', 'bg-green-500');
+            elements.status.classList.add('bg-red-500');
+        };
+
+        // This is the main function that runs when we receive data
+        socket.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                console.log('Data received:', data);
+
+                // Update the text content of the dashboard elements
+                elements.health.textContent = `${data.health}%`;
+                elements.voltage.textContent = `${data.voltage} mV`;
+                elements.temp.textContent = `${data.temp}°C`;
+                elements.accelX.textContent = data.accelX.toFixed(3);
+                elements.accelY.textContent = data.accelY.toFixed(3);
+                elements.accelZ.textContent = data.accelZ.toFixed(3);
+                
+                // Update the Earthquake Alert card
+                updateAlertCard(elements.earthquakeCard, elements.earthquakeAlert, data.earthquakeAlert, 'SEISMIC EVENT');
+
+                // Update the Weak Brick Warning card
+                updateAlertCard(elements.brickCard, elements.weakBrickWarning, data.weakBrickWarning, 'WARNING');
+
+            } catch (e) {
+                console.error('Error parsing JSON:', e);
+            }
+        };
+
+        // Helper function to update the style and text of alert cards
+        function updateAlertCard(cardElement, textElement, isAlert, alertText) {
+            if (isAlert) {
+                textElement.textContent = alertText;
+                cardElement.classList.remove('bg-green-800/50');
+                cardElement.classList.add('bg-red-600', 'alert-pulse');
+            } else {
+                textElement.textContent = 'NO';
+                cardElement.classList.remove('bg-red-600', 'alert-pulse');
+                cardElement.classList.add('bg-green-800/50');
+            }
+        }
+    </script>
+
+</body>
+</html>
+
