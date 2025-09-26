@@ -61,7 +61,7 @@
 </head>
 <body>
 
-<h1>ESP32 Realtime Monitoring Dashboard</h1>
+<h1>Realtime Monitoring Dashboard</h1>
 
 <div class="dashboard">
     <div class="card">
@@ -97,8 +97,9 @@
 <div id="alerts" class="alert safe">No Alerts</div>
 
 <script>
-cconst backendURL = "wss://geo-polymer-brick-backend.onrender.com:10000";
+const backendURL = "wss://geo-polymer-brick-backend.onrender.com";
 const ws = new WebSocket(backendURL);
+
 
 ws.onopen = () => console.log("Connected to backend WebSocket");
 
